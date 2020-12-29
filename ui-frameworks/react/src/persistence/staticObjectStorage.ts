@@ -12,6 +12,7 @@ import * as FileSaver from "file-saver";
 import * as Objects from "@paperbits/common/objects";
 import { HttpClient } from "@paperbits/common/http";
 import { IObjectStorage, Query, Operator, OrderDirection, Page } from "@paperbits/common/persistence";
+import * as html2canvas from 'html2canvas';
 
 const pageSize = 20;
 
@@ -22,6 +23,7 @@ export class StaticObjectStorage implements IObjectStorage {
     private loadDataPromise: Promise<Object>;
     protected storageDataObject: Object;
     private splitter = "/";
+    private brandWingsURL = "";
 
     constructor(private readonly httpClient: HttpClient) { }
 
@@ -37,6 +39,19 @@ export class StaticObjectStorage implements IObjectStorage {
             });
 
             this.storageDataObject = response.toObject();
+
+            this.httpClient.send({
+                url: "/data/url.json",
+                method: "GET"
+            }).then(response => {
+                var responseObject = response.toObject();
+                this.brandWingsURL = responseObject['BRAND_WINGS_URL'];
+
+                window.parent.postMessage({
+                    "message": "builder.loaded"
+                }, this.brandWingsURL)
+            });
+            
 
             resolve(this.storageDataObject);
         });
@@ -217,7 +232,27 @@ export class StaticObjectStorage implements IObjectStorage {
         const state = JSON.stringify(this.storageDataObject);
         const stateBlob = new Blob([state], { type: "text/plain;charset=utf-8" });
 
-        FileSaver.saveAs(stateBlob, "demo.json");
+        const _filesObject = delta["files"];
+
+        const element = document.querySelector(".host") as HTMLIFrameElement;
+        var iframeDocument = element.contentDocument.getElementsByTagName("body")[0];
+
+        var _brandWingsURL = this.brandWingsURL;
+        (html2canvas as any)(iframeDocument)
+            .then(function (canvas) {
+                const image = canvas.toDataURL();
+                const sendObject = {
+                    files: _filesObject,
+                    thumbnail: image
+                }
+                window.parent.postMessage({
+                    "message": "builder.saved",
+                    "object": sendObject
+                }, _brandWingsURL)
+            })
+
+
+        // FileSaver.saveAs(stateBlob, "demo.json");
 
         /* Uncomment to save changes in a separate file */
         // const changes = JSON.stringify(delta);

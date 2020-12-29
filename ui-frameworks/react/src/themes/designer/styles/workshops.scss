@@ -60,9 +60,16 @@
 .toolbox.workshops-container {
     z-index: $z-index-base;
     min-height: 370px;
+    display: none !important;
 
     .journey-container {
         padding: 10px 20px;
+    }
+}
+
+tray.toolbox {
+    div.toolbox-btn {
+        display: none   ;
     }
 }
 

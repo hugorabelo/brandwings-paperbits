@@ -58,6 +58,7 @@
         "@paperbits/styles": "0.1.323",
         "@webcomponents/custom-elements": "^1.4.2",
         "core-js": "^3.6.5",
+        "html2canvas": "^1.0.0-rc.7",
         "knockout": "^3.5.1",
         "knockout-mapping": "^2.6.0",
         "knockout.validation": "^2.0.4",

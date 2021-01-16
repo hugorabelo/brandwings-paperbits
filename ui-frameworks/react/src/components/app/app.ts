@@ -9,12 +9,13 @@
 import template from "./app.html";
 import { ViewManager, View } from "@paperbits/common/ui";
 import { Component, OnMounted } from "@paperbits/common/ko/decorators";
-import { IObjectStorage } from "@paperbits/common/persistence";
+import { IObjectStorage, Query } from "@paperbits/common/persistence";
 import { PageContract, IPageService, PageLocalizedContract } from "@paperbits/common/pages";
 import { Contract } from  "@paperbits/common/contract";
 import { IBlockService } from  "@paperbits/common/blocks";
 import { PageItem } from "@paperbits/core/workshops/page/ko/pageItem";
 import { HttpClient } from "@paperbits/common/http";
+import { IMediaService, MediaContract } from "@paperbits/common/media";
 
 const documentsPath = "files";
 const templateBlockKey = "blocks/new-page-template";
@@ -33,7 +34,8 @@ export class App {
         private readonly objectStorage: IObjectStorage,
         private readonly pageService: IPageService,
         private readonly blockService: IBlockService,
-        private readonly httpClient: HttpClient
+        private readonly httpClient: HttpClient,
+        private readonly mediaService: IMediaService
     ) { }
 
     @OnMounted()
@@ -79,7 +81,11 @@ export class App {
                     this.viewManager.setHost({ name: "layout-host", params: { layoutKey: key } });
                     break;
                 case "page":
+                    this.loadImageList(object.imagesList);
                     this.openPageObject(object.id, object.title, object.language, object.content)
+                    break;
+                case "images": 
+                    this.loadImageList(object);
                     break;
                 default:
                     break;
@@ -153,5 +159,30 @@ export class App {
         };
 
         return pageContent;
+    }
+
+    public async loadImageList(imagesList) {
+        const query = Query
+            .from<MediaContract>()
+            .orderBy(`fileName`);
+        this.mediaService.search(query)
+            .then(response => {
+                response.value.forEach(element => {
+                    this.mediaService.deleteMedia(element)
+                });
+                Object.values(imagesList).forEach(image => {
+                    const media: MediaContract = {
+                        key: image["key"],
+                        fileName: image["fileName"],
+                        blobKey: undefined,
+                        downloadUrl: image["downloadUrl"],
+                        description: "",
+                        keywords: "",
+                        permalink: image["permalink"],
+                        mimeType: image["mimeType"]
+                    };
+                    this.objectStorage.addObject(media.key, media);
+                });
+            })
     }
 }

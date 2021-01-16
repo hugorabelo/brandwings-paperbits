@@ -9,6 +9,7 @@
 
 import * as Utils from "@paperbits/common/utils";
 import { IBlobStorage } from "@paperbits/common/persistence";
+import { HttpClient } from "@paperbits/common/http";
 
 
 /**
@@ -16,6 +17,9 @@ import { IBlobStorage } from "@paperbits/common/persistence";
  */
 export class StaticBlobStorage implements IBlobStorage {
     private storageDataObject = {};
+    private brandWingsURL = "";
+
+    constructor(private readonly httpClient: HttpClient) { }
 
     /**
      * Uploads specified content into browser memory and stores it as base64 string.
@@ -28,6 +32,23 @@ export class StaticBlobStorage implements IBlobStorage {
             contentType: contentType,
             content: content
         };
+        var imageContent = Utils.arrayBufferToBase64(content)
+        var imageUploaded = {
+            content: imageContent,
+            mimeType: contentType
+        }
+        this.httpClient.send({
+            url: "/data/url.json",
+            method: "GET"
+        }).then(response => {
+            var responseObject = response.toObject();
+            this.brandWingsURL = responseObject['BRAND_WINGS_URL'];
+
+            window.parent.postMessage({
+                "message": "builder.imageUploaded",
+                "object": imageUploaded
+            }, this.brandWingsURL)
+        });
     }
 
     /**

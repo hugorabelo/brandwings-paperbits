@@ -15,6 +15,7 @@ $tip-width: 10px;
 
     &.balloon-is-active {
         display: flex;
+        max-height: 500px;
     }
 }
 

@@ -11,11 +11,16 @@ import { ViewManager, View } from "@paperbits/common/ui";
 import { Component, OnMounted } from "@paperbits/common/ko/decorators";
 import { IObjectStorage, Query } from "@paperbits/common/persistence";
 import { PageContract, IPageService, PageLocalizedContract } from "@paperbits/common/pages";
+import { LayoutContract, ILayoutService, LayoutLocalizedContract } from "@paperbits/common/layouts";
 import { Contract } from  "@paperbits/common/contract";
 import { IBlockService } from  "@paperbits/common/blocks";
 import { PageItem } from "@paperbits/core/workshops/page/ko/pageItem";
 import { HttpClient } from "@paperbits/common/http";
 import { IMediaService, MediaContract } from "@paperbits/common/media";
+import { LayoutItem } from "@paperbits/core/workshops/layout/ko";
+import { layoutTemplate } from "@paperbits/common/layouts/layoutTemplate";
+import { IPublisher } from "@paperbits/common/publishing";
+import { InversifyInjector } from "@paperbits/common/injection";
 
 const documentsPath = "files";
 const templateBlockKey = "blocks/new-page-template";
@@ -28,6 +33,7 @@ const urlPath = "../../.env";
 
 export class App {
     protected pagesPath: string = "pages";
+    protected layoutsPath: string = "layouts";
     
     constructor(
         private readonly viewManager: ViewManager,
@@ -35,7 +41,8 @@ export class App {
         private readonly pageService: IPageService,
         private readonly blockService: IBlockService,
         private readonly httpClient: HttpClient,
-        private readonly mediaService: IMediaService
+        private readonly mediaService: IMediaService,
+        private readonly layoutService: ILayoutService
     ) { }
 
     @OnMounted()
@@ -77,8 +84,9 @@ export class App {
                     this.viewManager.setHost({ name: "style-guide" });
                     break;
                 case "layout":
-                    var key = object.id
-                    this.viewManager.setHost({ name: "layout-host", params: { layoutKey: key } });
+                    this.loadImageList(object.imagesList);
+                    this.loadMenuList(object.menusList);
+                    this.openLayoutObject(object.id, object.name, object.html);
                     break;
                 case "page":
                     this.loadImageList(object.imagesList);
@@ -161,6 +169,68 @@ export class App {
         return pageContent;
     }
 
+    public async openLayoutObject(layoutId: string, layoutName: string, layoutContent: string) {
+        let layoutObject = await this.layoutService.getLayoutByKey(layoutId)
+
+        if(!layoutObject) {
+            const layoutUrlTemplate = "/" + layoutId;
+            layoutObject = await this.createLayout(layoutName, "", layoutUrlTemplate, layoutId, layoutContent);
+        }
+        const layoutItem = new LayoutItem(layoutObject);
+
+        const view: View = {
+            heading: "Layout",
+            component: {
+                name: "layout-details-workshop",
+                params: {
+                    layoutItem: layoutItem
+                }
+            }
+        };
+
+        this.viewManager.openViewAsWorkshop(view);
+    }
+
+    public async createLayout(title: string, description: string, permalinkTemplate: string, identifier: string, content: string): Promise<LayoutContract> {
+        const layoutKey = `${this.layoutsPath}/${identifier}`;
+        const contentKey = `${documentsPath}/${identifier}`;
+
+        const localizedLayout: LayoutLocalizedContract = {
+            key: layoutKey,
+            locales: {
+                ['en-us']: {
+                    title: title,
+                    description: description,
+                    permalinkTemplate: permalinkTemplate,
+                    contentKey: contentKey
+                }
+            }
+        };
+
+        await this.objectStorage.addObject<LayoutLocalizedContract>(layoutKey, localizedLayout);
+        let layoutNewTemplate;
+        if(content && content != '') {
+            layoutNewTemplate = {
+                nodes: JSON.parse(content),
+                type: "layout"
+            }
+        } else {
+            layoutNewTemplate = layoutTemplate;
+            
+        }
+        await this.objectStorage.addObject<Contract>(contentKey, layoutNewTemplate);
+
+        const layoutContent: LayoutContract = {
+            key: layoutKey,
+            title: title,
+            description: description,
+            permalinkTemplate: permalinkTemplate,
+            contentKey: contentKey
+        };
+
+        return layoutContent;
+    }
+
     public async loadImageList(imagesList) {
         const query = Query
             .from<MediaContract>()
@@ -184,5 +254,29 @@ export class App {
                     this.objectStorage.addObject(media.key, media);
                 });
             })
+    }
+
+    public async loadMenuList(menusList) {
+        this.objectStorage.deleteObject('navigationItems')
+            .then(() => {
+                this.objectStorage.addObject('navigationItems', menusList);
+            })
+    }
+
+    public publishSite() {
+       
+       const injector = new InversifyInjector(); 
+       const publisher = injector.resolve<IPublisher>("sitePublisher");
+
+        /* Running actual publishing */
+        publisher.publish()
+            .then(() => {
+                console.log("DONE.");
+                process.exit();
+            })
+            .catch((error) => {
+                console.log(error);
+                process.exit();
+            });
     }
 }

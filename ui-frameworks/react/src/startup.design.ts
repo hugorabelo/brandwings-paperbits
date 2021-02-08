@@ -18,9 +18,11 @@ import { StylesDesignModule } from "@paperbits/styles/styles.design.module";
 import { ProseMirrorModule } from "@paperbits/prosemirror/prosemirror.module";
 import { OfflineModule } from "@paperbits/common/persistence/offline.module";
 import { DemoDesignModule } from "./modules/demo.design.module";
+import { HtmlPagePublisher } from "@paperbits/common/publishing";
 
 /* Initializing dependency injection  */
 const injector = new InversifyInjector();
+injector.bindCollection("publishers");
 injector.bindModule(new CoreDesignModule());
 injector.bindModule(new FormsDesignModule());
 injector.bindModule(new EmailsDesignModule());
@@ -28,6 +30,7 @@ injector.bindModule(new StylesDesignModule());
 injector.bindModule(new ProseMirrorModule());
 injector.bindModule(new DemoDesignModule());
 injector.bindModule(new OfflineModule({ autosave: false }));
+injector.bind("htmlPagePublisher", HtmlPagePublisher);
 injector.resolve("autostart");
 
 document.addEventListener("DOMContentLoaded", () => {

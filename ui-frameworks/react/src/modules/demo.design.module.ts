@@ -16,6 +16,7 @@ import { StaticBlobStorage } from "../persistence/staticBlobStorage";
 import { StaticRoleService } from "../user/staticRoleService";
 import { ClickCounterEditorModule } from "../components/click-counter/design/clickCounterEditor.module";
 import { HistoryRouteHandler } from "@paperbits/common/routing";
+import { DefaultEventManager } from "@paperbits/common/events";
 
 
 export class DemoDesignModule implements IInjectorModule {
@@ -26,6 +27,7 @@ export class DemoDesignModule implements IInjectorModule {
         injector.bindSingleton("objectStorage", StaticObjectStorage);
         injector.bindToCollection("autostart", HistoryRouteHandler);
         injector.bindSingleton("logger", ConsoleLogger);
+        injector.bindSingleton("eventManager", DefaultEventManager);
         injector.bindModule(new SearchDesignModule());
         injector.bindModule(new ClickCounterEditorModule());
     }

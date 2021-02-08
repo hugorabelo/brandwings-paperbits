@@ -21,6 +21,7 @@ import { LayoutItem } from "@paperbits/core/workshops/layout/ko";
 import { layoutTemplate } from "@paperbits/common/layouts/layoutTemplate";
 import { IPublisher } from "@paperbits/common/publishing";
 import { InversifyInjector } from "@paperbits/common/injection";
+import { EventManager } from "@paperbits/common/events";
 
 const documentsPath = "files";
 const templateBlockKey = "blocks/new-page-template";
@@ -34,6 +35,8 @@ const urlPath = "../../.env";
 export class App {
     protected pagesPath: string = "pages";
     protected layoutsPath: string = "layouts";
+    private brandWingsURL = "";
+    private currentObject = {};
     
     constructor(
         private readonly viewManager: ViewManager,
@@ -42,8 +45,22 @@ export class App {
         private readonly blockService: IBlockService,
         private readonly httpClient: HttpClient,
         private readonly mediaService: IMediaService,
-        private readonly layoutService: ILayoutService
-    ) { }
+        private readonly layoutService: ILayoutService,
+        private readonly eventManager: EventManager
+    ) { 
+        eventManager.addEventListener("onSaveChanges", async () => {
+            var document = viewManager.getHostDocument();
+            var sendObject = {
+                type: this.currentObject['type'],
+                id: this.currentObject['id'],
+                html: document.documentElement.innerHTML
+            }
+            window.parent.postMessage({
+                    "message": "builder.saveHTML",
+                    "object": sendObject
+                }, this.brandWingsURL)
+        });
+    }
 
     @OnMounted()
     public async initialize(): Promise<void> {
@@ -59,20 +76,20 @@ export class App {
 
         this.viewManager.setHost({ name: "page-host" });
 
-        var brandWingsURL = "";
         this.httpClient.send({
             url: "/data/url.json",
             method: "GET"
         }).then(response => {
             var responseObject = response.toObject();
-            brandWingsURL = responseObject['BRAND_WINGS_URL'];
+            this.brandWingsURL = responseObject['BRAND_WINGS_URL'];
         });
 
         window.addEventListener("message", (event) => {
-            if(event.origin != brandWingsURL) {
+            if(event.origin != this.brandWingsURL) {
                 return;
             }
             var eData = event.data;
+            this.currentObject = eData;
             this.openObject(eData);
         }, false);
     }
@@ -86,11 +103,11 @@ export class App {
                 case "layout":
                     this.loadImageList(object.imagesList);
                     this.loadMenuList(object.menusList);
-                    this.openLayoutObject(object.id, object.name, object.html);
+                    this.openLayoutObject(object.id, object.name, object.markup);
                     break;
                 case "page":
                     this.loadImageList(object.imagesList);
-                    this.openPageObject(object.id, object.title, object.language, object.content)
+                    this.openPageObject(object.id, object.title, object.language, object.markup)
                     break;
                 case "images": 
                     this.loadImageList(object);
@@ -216,7 +233,6 @@ export class App {
             }
         } else {
             layoutNewTemplate = layoutTemplate;
-            
         }
         await this.objectStorage.addObject<Contract>(contentKey, layoutNewTemplate);
 
